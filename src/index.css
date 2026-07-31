@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", var(--font-sans);
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #f8fafc; /* slate-50 */
+  color: #0f172a; /* slate-900 */
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode basic overrides */
+.dark body {
+  background-color: #090d16;
+  color: #f8fafc;
+}
+
+/* Strictly enforce containment on all main structural blocks and layout grids */
+html, body, #root, #cc-app-root {
+  max-width: 100% !important;
+  width: 100%;
+  overflow-x: hidden !important;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* All container elements must respect the screen boundary and hide overflow */
+main, section, header, footer, .max-w-7xl, .max-w-4xl, .container, .grid {
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+/* Prevent text, code blocks, tables, and images from ever exceeding their wrapper constraints */
+pre, code, table, img, svg, input, select, button, textarea {
+  max-width: 100% !important;
+}
+
+/* Fix Google Translate widget and dropdown styling */
+.goog-te-menu-frame, 
+iframe.goog-te-menu-frame, 
+.goog-te-menu-frame:active, 
+.goog-te-menu-frame:hover {
+  z-index: 99999 !important;
+  position: fixed !important;
+  top: auto !important;
+  bottom: 50px !important;
+  left: auto !important;
+  right: 20px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  border-radius: 12px !important;
+}
+
+/* Ensure Google Translate banner doesn't offset our layout headers */
+.goog-te-banner-frame.skiptranslate {
+  display: none !important;
+}
+
+body {
+  top: 0px !important;
+}
+
+

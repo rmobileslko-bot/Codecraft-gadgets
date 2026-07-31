@@ -1,0 +1,6 @@
+{
+  "name": "codecraft-gadgets",
+  "description": "A modern, minimalist affiliate gadget recommendation and price comparison website inspired by Buyhatke, powered by Codecrafttechnologies (https://codecrafttechno.com/).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
