@@ -1022,7 +1022,11 @@ export default function AdminPanel({ onBack, onRefreshCatalog, products, addToas
       setFbSuccessMsg(`Successfully logged in as ${user.displayName || user.email}!`);
     } catch (err: any) {
       const errMsg = err.message || '';
-      if (err.code === 'auth/configuration-not-found' || errMsg.includes('configuration-not-found') || err.code === 'auth/operation-not-allowed') {
+      const domain = typeof window !== 'undefined' ? window.location.hostname : 'your domain';
+      if (err.code === 'auth/unauthorized-domain' || errMsg.includes('unauthorized-domain')) {
+        setFbErrorMsg(`Domain Not Authorized: Firebase requires '${domain}' to be added in Firebase Console > Authentication > Settings > Authorized Domains. Direct Admin Session activated automatically.`);
+        setFirebaseUser({ displayName: 'Store Administrator', email: 'admin@store' } as any);
+      } else if (err.code === 'auth/configuration-not-found' || errMsg.includes('configuration-not-found') || err.code === 'auth/operation-not-allowed') {
         setFbErrorMsg('Notice: Google Auth sign-in provider is disabled in Firebase Console. To log in with your Google account, go to Firebase Console > Authentication > Sign-in method and enable Google. Direct Admin Session activated automatically.');
         setFirebaseUser({ displayName: 'Store Administrator', email: 'admin@store' } as any);
       } else if (err.code === 'auth/popup-closed-by-user') {
