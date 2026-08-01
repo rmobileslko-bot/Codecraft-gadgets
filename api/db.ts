@@ -9,6 +9,8 @@ import {
   deleteDoc,
   Firestore
 } from 'firebase/firestore';
+import fs from 'fs';
+import path from 'path';
 
 export interface ServerSettings {
   geminiApiKey?: string;
@@ -48,6 +50,38 @@ const memoryStore: {
   customProducts: [],
   deletedProducts: [],
 };
+
+const DATA_FILE = path.join(process.cwd(), 'data-store.json');
+
+function loadMemoryFromFile() {
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+      const data = JSON.parse(raw);
+      if (data) {
+        if (data.settings) memoryStore.settings = { ...memoryStore.settings, ...data.settings };
+        if (Array.isArray(data.newsPosts)) memoryStore.newsPosts = data.newsPosts;
+        if (Array.isArray(data.newsletterSubscribers)) memoryStore.newsletterSubscribers = data.newsletterSubscribers;
+        if (Array.isArray(data.priceAlerts)) memoryStore.priceAlerts = data.priceAlerts;
+        if (Array.isArray(data.customProducts)) memoryStore.customProducts = data.customProducts;
+        if (Array.isArray(data.deletedProducts)) memoryStore.deletedProducts = data.deletedProducts;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load memory store from file:', err);
+  }
+}
+
+function saveMemoryToFile() {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(memoryStore, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Failed to save memory store to file:', err);
+  }
+}
+
+// Load persisted data from disk on boot
+loadMemoryFromFile();
 
 let isFirestoreDisabled = false;
 
@@ -123,6 +157,7 @@ export async function saveServerSettings(newSettings: Partial<ServerSettings>): 
   if (updated.geminiApiKey) {
     process.env.GEMINI_API_KEY = updated.geminiApiKey;
   }
+  saveMemoryToFile();
 
   const db = getDb();
   if (db) {
@@ -159,6 +194,7 @@ export async function getNewsPosts(): Promise<any[]> {
 
 export async function saveNewsPosts(posts: any[]): Promise<void> {
   memoryStore.newsPosts = posts;
+  saveMemoryToFile();
   const db = getDb();
   if (db) {
     try {
@@ -174,6 +210,7 @@ export async function saveNewsPosts(posts: any[]): Promise<void> {
 
 export async function deleteNewsPost(id: string): Promise<void> {
   memoryStore.newsPosts = memoryStore.newsPosts.filter((p) => p.id !== id && p.slug !== id);
+  saveMemoryToFile();
   const db = getDb();
   if (db) {
     try {
@@ -196,6 +233,7 @@ export async function getNewsletterSubscribers(): Promise<any[]> {
       });
       if (subs.length > 0) {
         memoryStore.newsletterSubscribers = subs;
+        saveMemoryToFile();
         return subs;
       }
     } catch (e) {
@@ -207,6 +245,7 @@ export async function getNewsletterSubscribers(): Promise<any[]> {
 
 export async function saveNewsletterSubscribers(subscribers: any[]): Promise<void> {
   memoryStore.newsletterSubscribers = subscribers;
+  saveMemoryToFile();
   const db = getDb();
   if (db) {
     try {
@@ -232,6 +271,7 @@ export async function getPriceAlerts(): Promise<any[]> {
       });
       if (alerts.length > 0) {
         memoryStore.priceAlerts = alerts;
+        saveMemoryToFile();
         return alerts;
       }
     } catch (e) {
@@ -243,6 +283,7 @@ export async function getPriceAlerts(): Promise<any[]> {
 
 export async function savePriceAlerts(alerts: any[]): Promise<void> {
   memoryStore.priceAlerts = alerts;
+  saveMemoryToFile();
   const db = getDb();
   if (db) {
     try {
@@ -258,6 +299,7 @@ export async function savePriceAlerts(alerts: any[]): Promise<void> {
 
 export async function deletePriceAlert(id: string): Promise<void> {
   memoryStore.priceAlerts = memoryStore.priceAlerts.filter((a) => a.id !== id);
+  saveMemoryToFile();
   const db = getDb();
   if (db) {
     try {
@@ -280,6 +322,7 @@ export async function getCustomProducts(): Promise<any[]> {
       });
       if (products.length > 0) {
         memoryStore.customProducts = products;
+        saveMemoryToFile();
         return products;
       }
     } catch (e) {
@@ -298,6 +341,7 @@ export async function saveCustomProduct(product: any): Promise<void> {
     custom.push(product);
   }
   memoryStore.customProducts = custom;
+  saveMemoryToFile();
 
   const db = getDb();
   if (db) {
@@ -312,6 +356,7 @@ export async function saveCustomProduct(product: any): Promise<void> {
 export async function deleteCustomProduct(id: string): Promise<void> {
   const custom = await getCustomProducts();
   memoryStore.customProducts = custom.filter((p: any) => p.id !== id);
+  saveMemoryToFile();
   const db = getDb();
   if (db) {
     try {
@@ -334,6 +379,7 @@ export async function getDeletedProducts(): Promise<string[]> {
       });
       if (deleted.length > 0) {
         memoryStore.deletedProducts = deleted;
+        saveMemoryToFile();
         return deleted;
       }
     } catch (e) {
@@ -349,6 +395,7 @@ export async function addDeletedProduct(id: string): Promise<void> {
     deleted.push(id);
   }
   memoryStore.deletedProducts = deleted;
+  saveMemoryToFile();
 
   const db = getDb();
   if (db) {
@@ -363,6 +410,7 @@ export async function addDeletedProduct(id: string): Promise<void> {
 export async function removeDeletedProduct(id: string): Promise<void> {
   const deleted = await getDeletedProducts();
   memoryStore.deletedProducts = deleted.filter((d) => d !== id);
+  saveMemoryToFile();
 
   const db = getDb();
   if (db) {
