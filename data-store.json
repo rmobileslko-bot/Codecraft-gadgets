@@ -1,0 +1,12 @@
+{
+  "settings": {
+    "geminiApiKey": "AQ.Ab8RN6JC3L5LeoikQEw7Yqch_20rQOZzRALtj9UyI0Xmh7DuxA",
+    "firebaseConfig": null,
+    "smtpConfig": null
+  },
+  "newsPosts": [],
+  "newsletterSubscribers": [],
+  "priceAlerts": [],
+  "customProducts": [],
+  "deletedProducts": []
+}
