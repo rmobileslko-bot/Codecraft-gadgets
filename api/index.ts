@@ -1140,8 +1140,15 @@ app.post('/api/admin/verify-gemini-key', async (req, res) => {
     }
   } catch (err: any) {
     let errorMsg = err?.message || 'Verification failed. Unable to connect to Google Gemini API.';
-    if (errorMsg.includes('API_KEY_INVALID') || errorMsg.includes('API key not valid') || errorMsg.includes('INVALID_ARGUMENT')) {
-      errorMsg = 'API key is not valid. Please enter a valid Gemini API key from Google AI Studio (https://aistudio.google.com/app/apikey).';
+    if (
+      errorMsg.includes('API_KEY_INVALID') ||
+      errorMsg.includes('API key not valid') ||
+      errorMsg.includes('INVALID_ARGUMENT') ||
+      errorMsg.includes('invalid authentication credentials') ||
+      errorMsg.includes('OAuth 2') ||
+      errorMsg.includes('UNAUTHENTICATED')
+    ) {
+      errorMsg = 'Invalid Gemini API Key format or wrong key. Please create and copy a fresh key starting with "AIzaSy..." from Google AI Studio (https://aistudio.google.com/app/apikey). Do NOT use GCP service account or OAuth keys.';
     } else if (errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('429') || errorMsg.includes('Quota exceeded')) {
       errorMsg = 'Gemini API key is valid, but free tier request quota reached (429 Rate Limit). Please try again later or use a billing-enabled key.';
     }
@@ -1431,6 +1438,185 @@ title, summary, content, category, author, imageUrl, metaDescription, keywords, 
 
   // High quality smart fallback if Gemini API is offline, key missing, or quota limit hit
   return res.json(generateSmartNewsPostFallback(productUrlOrTopic));
+});
+
+// Helper for generating Amazon-style positive customer reviews
+function generateFallbackAmazonReviews(title: string): string {
+  const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const prod = title || 'Gadget Product';
+  return `Ashwini Parihar
+5 out of 5 stars Fighter plane / Outstanding Performance!
+Reviewed in India on ${dateStr}
+Verified Purchase | Colour: Multicolor / Standard Edition
+Fun and easy to fly. Good controls and nice stunts. Overall worth it. Battery life easily lasts full day under heavy usage.
+
+Rahul Sharma
+5.0 out of 5 stars Best product in this price budget
+Reviewed in India on ${dateStr}
+Verified Purchase | Size: Standard
+Completely satisfied with the purchase! The screen quality is crisp and touch response is smooth. Delivery by Amazon was super fast in 24 hours.
+
+Ananya V.
+5.0 out of 5 stars Genuine product, amazing battery backup!
+Reviewed in India on ${dateStr}
+Verified Purchase
+I bought this after reading multiple reviews and it lived up to expectations. Camera clarity and sound output are impressive. Highly recommended!
+
+Vikas Gupta
+5.0 out of 5 stars Top notch build & premium feel
+Reviewed in India on ${dateStr}
+Verified Purchase
+Solid in hand and does not heat up during multitasking. The charger included charges it very quickly. 10/10 value for money.
+
+Pooja Nair
+5.0 out of 5 stars Very smooth performance, sleek design!
+Reviewed in India on ${dateStr}
+Verified Purchase
+Looks super stylish! All apps run smoothly without lag. Fingerprint sensor and unlock are lightning quick.
+
+Siddharth Roy
+5.0 out of 5 stars Excellent display and audio output
+Reviewed in India on ${dateStr}
+Verified Purchase
+Sound quality is loud and clear with deep bass. Video playback quality on YouTube and Netflix is top tier.
+
+Neha Verma
+5.0 out of 5 stars Worth every rupee spent!
+Reviewed in India on ${dateStr}
+Verified Purchase
+Extremely pleased with ${prod}. The packaging was intact and device turned on instantly. Great battery optimization.
+
+Karan Malhotra
+5.0 out of 5 stars Superb user experience & lightweight
+Reviewed in India on ${dateStr}
+Verified Purchase
+Lightweight and premium finish. Buttons have nice tactile feedback. Perfect choice for daily use and gaming.
+
+Deepak Choudhary
+5.0 out of 5 stars Reliable performance & great warranty support
+Reviewed in India on ${dateStr}
+Verified Purchase
+Zero complaints after 2 weeks of heavy testing. No lagging or glitching found. Truly a flagship killer experience.
+
+Meera Patel
+5.0 out of 5 stars Highly recommended gadget!
+Reviewed in India on ${dateStr}
+Verified Purchase
+Gave this as a gift to my family member and they loved it! Beautiful colors and very fast overall processing.`;
+}
+
+// POST /api/admin/ai-assist - Dedicated AI Prompt generator for Reviews & Pros/Cons
+app.post('/api/admin/ai-assist', async (req, res) => {
+  try {
+    const { action, productTitle, customPrompt, apiKey } = req.body || {};
+    if (!productTitle || typeof productTitle !== 'string' || !productTitle.trim()) {
+      return res.status(400).json({ error: 'Product title is required for AI generation.' });
+    }
+
+    const titleStr = productTitle.trim();
+    const serverSettings = await getServerSettings();
+    const geminiKey = apiKey || serverSettings.geminiApiKey || process.env.GEMINI_API_KEY;
+
+    if (action === 'generate-reviews') {
+      let resultText = '';
+      if (geminiKey) {
+        try {
+          const ai = new GoogleGenAI({
+            apiKey: geminiKey,
+            httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+          });
+
+          const prompt = `You are an expert e-commerce reviewer writing Amazon India customer reviews.
+Product Name: "${titleStr}"
+User Custom Instruction: "${(customPrompt || '').trim() || 'Write 10 positive Amazon India style reviews detailing features and customer experience.'}"
+
+Requirements:
+- Write exactly 10 authentic, positive Amazon customer reviews.
+- Format each review like Amazon India:
+  1. Customer Full Name (e.g., Ashwini Parihar, Rahul Sharma)
+  2. Star Rating (5 out of 5 stars / 5.0 out of 5 stars)
+  3. Short Catchy Title
+  4. "Reviewed in India on ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}"
+  5. "Verified Purchase | Colour/Size Details"
+  6. Detailed 2-3 sentence review body praising performance, battery, build quality, screen, or value for money.
+- Separate each review with a blank line.`;
+
+          const response = await ai.models.generateContent({
+            model: 'gemini-3.6-flash',
+            contents: prompt,
+          });
+
+          resultText = response.text || '';
+        } catch (aiErr: any) {
+          console.info('Gemini AI generate-reviews fallback active.');
+        }
+      }
+
+      if (!resultText) {
+        resultText = generateFallbackAmazonReviews(titleStr);
+      }
+
+      return res.json({ success: true, reviewsSummary: resultText });
+    }
+
+    if (action === 'generate-pros-cons') {
+      let pros: string[] = [];
+      let cons: string[] = [];
+      let brand = '';
+
+      if (geminiKey) {
+        try {
+          const ai = new GoogleGenAI({
+            apiKey: geminiKey,
+            httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+          });
+
+          const prompt = `Analyze the gadget product: "${titleStr}".
+User Instruction: "${(customPrompt || '').trim() || 'Identify top pros and cons.'}"
+
+Return JSON object:
+{
+  "pros": ["Pro 1", "Pro 2", "Pro 3", "Pro 4", "Pro 5"],
+  "cons": ["Con 1", "Con 2", "Con 3"],
+  "brand": "Brand Name"
+}`;
+
+          const response = await ai.models.generateContent({
+            model: 'gemini-3.6-flash',
+            contents: prompt,
+            config: { responseMimeType: 'application/json' }
+          });
+
+          const parsed = JSON.parse(response.text || '{}');
+          if (Array.isArray(parsed.pros) && parsed.pros.length > 0) pros = parsed.pros;
+          if (Array.isArray(parsed.cons) && parsed.cons.length > 0) cons = parsed.cons;
+          if (parsed.brand) brand = parsed.brand;
+        } catch (aiErr: any) {
+          console.info('Gemini AI generate-pros-cons fallback active.');
+        }
+      }
+
+      if (pros.length === 0) {
+        pros = [
+          `Durable design & premium ergonomics for ${titleStr}`,
+          `Great performance and smooth responsiveness`,
+          `High quality vibrant display with excellent clarity`,
+          `Long-lasting battery endurance with fast charging`,
+          `Wide availability and excellent value for money`
+        ];
+        cons = [
+          `Slightly premium price point`,
+          `Accessories sold separately`
+        ];
+      }
+
+      return res.json({ success: true, pros, cons, brand });
+    }
+
+    return res.status(400).json({ error: 'Invalid action specified' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Failed to execute AI assist action' });
+  }
 });
 
 // POST /api/admin/gemini-generate
