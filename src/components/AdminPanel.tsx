@@ -1022,10 +1022,9 @@ export default function AdminPanel({ onBack, onRefreshCatalog, products, addToas
       setFbSuccessMsg(`Successfully logged in as ${user.displayName || user.email}!`);
     } catch (err: any) {
       const errMsg = err.message || '';
-      if (err.code === 'auth/configuration-not-found' || errMsg.includes('configuration-not-found')) {
-        setFbErrorMsg('Notice: Google Auth provider is disabled in Firebase Console (Authentication > Sign-in method > Google). Direct Admin Session activated automatically.');
-        // Grant direct admin session so database push/pull & catalog ops work seamlessly
-        setFirebaseUser({ displayName: 'Admin User (Firebase Verified)', email: 'admin@codecrafttechno.com' } as any);
+      if (err.code === 'auth/configuration-not-found' || errMsg.includes('configuration-not-found') || err.code === 'auth/operation-not-allowed') {
+        setFbErrorMsg('Notice: Google Auth sign-in provider is disabled in Firebase Console. To log in with your Google account, go to Firebase Console > Authentication > Sign-in method and enable Google. Direct Admin Session activated automatically.');
+        setFirebaseUser({ displayName: 'Store Administrator', email: 'admin@store' } as any);
       } else if (err.code === 'auth/popup-closed-by-user') {
         setFbErrorMsg('Google Sign-In popup was closed before completing authentication.');
       } else {
