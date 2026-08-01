@@ -66,8 +66,15 @@ function checkIsFirestoreDisabled(): boolean {
 
 function handleClientFirestoreError(e: any, operationName: string) {
   const msg = String(e?.message || e);
-  if (msg.includes('PERMISSION_DENIED') || msg.includes('disabled') || msg.includes('not been used') || msg.includes('Permission denied')) {
-    console.info(`Cloud Firestore API is not enabled for this project. Disabling Firestore client operations and using local storage.`);
+  if (
+    msg.includes('PERMISSION_DENIED') ||
+    msg.includes('Missing or insufficient permissions') ||
+    msg.includes('permission') ||
+    msg.includes('disabled') ||
+    msg.includes('not been used') ||
+    msg.includes('NOT_FOUND')
+  ) {
+    console.info(`Cloud Firestore access issue for '${operationName}'. Using local storage fallback.`);
     try {
       localStorage.setItem('firestore_disabled', 'true');
     } catch (_) {}
