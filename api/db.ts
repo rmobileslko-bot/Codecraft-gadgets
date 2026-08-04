@@ -323,14 +323,17 @@ export async function getCustomProducts(): Promise<any[]> {
     try {
       const colRef = collection(db, 'custom_products');
       const snap = await getDocs(colRef);
-      const products: any[] = [];
+      const fsProducts: any[] = [];
       snap.forEach((docSnap) => {
-        products.push({ id: docSnap.id, ...docSnap.data() });
+        fsProducts.push({ id: docSnap.id, ...docSnap.data() });
       });
-      if (products.length > 0) {
-        memoryStore.customProducts = products;
+      if (fsProducts.length > 0) {
+        // Safely merge Firestore custom products with memoryStore without losing local additions
+        const map = new Map<string, any>();
+        memoryStore.customProducts.forEach((p) => map.set(p.id, p));
+        fsProducts.forEach((p) => map.set(p.id, p));
+        memoryStore.customProducts = Array.from(map.values());
         saveMemoryToFile();
-        return products;
       }
     } catch (e) {
       handleFirestoreError(e, 'getCustomProducts');
@@ -345,7 +348,7 @@ export async function saveCustomProduct(product: any): Promise<void> {
   if (index > -1) {
     custom[index] = product;
   } else {
-    custom.push(product);
+    custom.unshift(product);
   }
   memoryStore.customProducts = custom;
   saveMemoryToFile();
@@ -380,20 +383,37 @@ export async function getDeletedProducts(): Promise<string[]> {
     try {
       const colRef = collection(db, 'deleted_products');
       const snap = await getDocs(colRef);
-      const deleted: string[] = [];
+      const fsDeleted: string[] = [];
       snap.forEach((docSnap) => {
-        deleted.push(docSnap.id);
+        fsDeleted.push(docSnap.id);
       });
-      if (deleted.length > 0) {
-        memoryStore.deletedProducts = deleted;
+      if (fsDeleted.length > 0) {
+        const mergedSet = new Set([...memoryStore.deletedProducts, ...fsDeleted]);
+        memoryStore.deletedProducts = Array.from(mergedSet);
         saveMemoryToFile();
-        return deleted;
       }
     } catch (e) {
       handleFirestoreError(e, 'getDeletedProducts');
     }
   }
   return memoryStore.deletedProducts;
+}
+
+export async function clearDeletedProducts(): Promise<void> {
+  memoryStore.deletedProducts = [];
+  saveMemoryToFile();
+  const db = getDb();
+  if (db) {
+    try {
+      const colRef = collection(db, 'deleted_products');
+      const snap = await getDocs(colRef);
+      for (const docSnap of snap.docs) {
+        await deleteDoc(doc(db, 'deleted_products', docSnap.id));
+      }
+    } catch (e) {
+      handleFirestoreError(e, 'clearDeletedProducts');
+    }
+  }
 }
 
 export async function addDeletedProduct(id: string): Promise<void> {
