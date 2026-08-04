@@ -73,7 +73,14 @@ export default function App() {
           const extraCustom = localCustom.filter((cp: any) => !dataIds.has(cp.id));
           const merged = [...extraCustom, ...data];
           const filtered = merged.filter((p: any) => !deletedSet.has(p.id));
-          setProductsState(filtered);
+          
+          if (filtered.length === 0 && merged.length > 0) {
+            console.info('Auto-recovering catalog from stale local deletions.');
+            localStorage.removeItem('deletedProductIds');
+            setProductsState(merged);
+          } else {
+            setProductsState(filtered);
+          }
         }
       })
       .catch(err => {
@@ -85,7 +92,12 @@ export default function App() {
           ...GADGETS_DATA.filter(p => !customIds.has(p.id))
         ];
         const filtered = merged.filter((p: any) => !deletedSet.has(p.id));
-        setProductsState(filtered);
+        if (filtered.length === 0 && merged.length > 0) {
+          localStorage.removeItem('deletedProductIds');
+          setProductsState(merged);
+        } else {
+          setProductsState(filtered);
+        }
       });
   };
 
@@ -748,16 +760,35 @@ export default function App() {
                   We couldn't locate any items matching your selected criteria. Try resetting filters or choosing another category.
                 </p>
               </div>
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setBrandFilter('all');
-                  setActiveCategory('all');
-                }}
-                className="px-5 py-2.5 bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white font-semibold text-xs rounded-lg shadow-md cursor-pointer"
-              >
-                Reset All Filters
-              </button>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setBrandFilter('all');
+                    setActiveCategory('all');
+                  }}
+                  className="px-5 py-2.5 bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white font-semibold text-xs rounded-lg shadow-md cursor-pointer"
+                >
+                  Reset All Filters
+                </button>
+                <button
+                  onClick={async () => {
+                    localStorage.removeItem('deletedProductIds');
+                    try {
+                      const res = await fetch('/api/products/reset', { method: 'POST' });
+                      if (res.ok) {
+                        fetchProducts();
+                      }
+                    } catch {}
+                    setSearchQuery('');
+                    setBrandFilter('all');
+                    setActiveCategory('all');
+                  }}
+                  className="px-5 py-2.5 bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 text-white font-semibold text-xs rounded-lg shadow-md cursor-pointer"
+                >
+                  Restore Full Catalog
+                </button>
+              </div>
             </div>
           ) : (
             <>
