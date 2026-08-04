@@ -897,6 +897,20 @@ export default function AdminPanel({ onBack, onRefreshCatalog, products, addToas
         throw new Error(errorData.error || 'Failed to save custom product to live inventory');
       }
 
+      // Sync local state / client backup and clear deletion flags
+      try {
+        const existingCustom: GadgetProduct[] = JSON.parse(localStorage.getItem('customProducts') || '[]');
+        const updated = [scrapedProduct as GadgetProduct, ...existingCustom.filter(p => p.id !== scrapedProduct.id)];
+        localStorage.setItem('customProducts', JSON.stringify(updated));
+
+        const localDeleted: string[] = JSON.parse(localStorage.getItem('deletedProductIds') || '[]');
+        const filteredDeleted = localDeleted.filter(id => id !== scrapedProduct.id);
+        localStorage.setItem('deletedProductIds', JSON.stringify(filteredDeleted));
+        setLocalDeletedProductIds(filteredDeleted);
+      } catch (e) {
+        console.warn('localStorage sync warning:', e);
+      }
+
       setProductSavedSuccess(true);
       onRefreshCatalog(); // Notify parent to fetch products
       setTimeout(() => {
@@ -1098,6 +1112,23 @@ export default function AdminPanel({ onBack, onRefreshCatalog, products, addToas
       setFbErrorMsg(`Failed to sync from Firestore: ${err.message}`);
     } finally {
       setIsSyncingFirebase(false);
+    }
+  };
+
+  const handleRestoreCatalog = async () => {
+    try {
+      localStorage.removeItem('deletedProductIds');
+      setLocalDeletedProductIds([]);
+      const res = await fetch('/api/products/reset', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Successfully restored ${data.count || 0} products in your catalog!`);
+        onRefreshCatalog();
+      } else {
+        throw new Error('Server returned error on catalog reset');
+      }
+    } catch (err: any) {
+      alert(`Catalog restore failed: ${err.message}`);
     }
   };
 
@@ -2792,6 +2823,23 @@ export default function AdminPanel({ onBack, onRefreshCatalog, products, addToas
                           >
                             {isSyncingFirebase ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                             <span>Download to Local</span>
+                          </button>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-150 dark:border-slate-850 space-y-3 sm:col-span-2">
+                          <h5 className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Catalog Recovery & Memory Sync</span>
+                          </h5>
+                          <p className="text-[10px] text-slate-400 leading-relaxed">
+                            If any products were accidentally hidden or lost from memory, click here to clear local deletion filters, restore all default gadgets, and sync all custom products saved in permanent server disk storage.
+                          </p>
+                          <button
+                            onClick={handleRestoreCatalog}
+                            className="py-2.5 px-5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold cursor-pointer transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Restore Full Product Catalog</span>
                           </button>
                         </div>
                       </div>
