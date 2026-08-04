@@ -17,6 +17,7 @@ import {
   saveCustomProduct,
   deleteCustomProduct,
   getDeletedProducts,
+  clearDeletedProducts,
   addDeletedProduct,
   removeDeletedProduct,
   ServerSettings
@@ -839,6 +840,22 @@ app.delete('/api/products/:id', async (req, res) => {
     res.json(filtered);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Failed to delete product' });
+  }
+});
+
+// POST /api/products/reset - Clears deletions and restores all default & custom products
+app.post('/api/products/reset', async (req, res) => {
+  try {
+    await clearDeletedProducts();
+    const custom = await getCustomProducts();
+    const customIds = new Set(custom.map((p: any) => p.id));
+    const merged = [
+      ...custom,
+      ...GADGETS_DATA.filter((p) => !customIds.has(p.id))
+    ];
+    res.json({ success: true, count: merged.length, products: merged });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to reset product catalog' });
   }
 });
 
