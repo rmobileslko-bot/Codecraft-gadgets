@@ -52,11 +52,13 @@ const memoryStore: {
 };
 
 const DATA_FILE = path.join(process.cwd(), 'data-store.json');
+const TMP_DATA_FILE = path.join('/tmp', 'data-store.json');
 
 function loadMemoryFromFile() {
   try {
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+    const fileToLoad = fs.existsSync(TMP_DATA_FILE) ? TMP_DATA_FILE : (fs.existsSync(DATA_FILE) ? DATA_FILE : null);
+    if (fileToLoad) {
+      const raw = fs.readFileSync(fileToLoad, 'utf-8');
       const data = JSON.parse(raw);
       if (data) {
         if (data.settings) memoryStore.settings = { ...memoryStore.settings, ...data.settings };
@@ -75,8 +77,16 @@ function loadMemoryFromFile() {
 function saveMemoryToFile() {
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(memoryStore, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Failed to save memory store to file:', err);
+  } catch (err: any) {
+    if (err?.code === 'EROFS') {
+      try {
+        fs.writeFileSync(TMP_DATA_FILE, JSON.stringify(memoryStore, null, 2), 'utf-8');
+      } catch (tmpErr) {
+        // ignore
+      }
+    } else {
+      console.error('Failed to save memory store to file:', err);
+    }
   }
 }
 
@@ -93,9 +103,10 @@ function handleFirestoreError(e: any, operationName: string) {
     msg.includes('permission') ||
     msg.includes('disabled') ||
     msg.includes('not been used') ||
-    msg.includes('NOT_FOUND')
+    msg.includes('NOT_FOUND') ||
+    msg.includes('invalid')
   ) {
-    console.info(`Firestore unavailable for '${operationName}': seamlessly falling back to local file store.`);
+    console.info(`Firestore unavailable for '${operationName}': seamlessly falling back to local store.`);
   } else {
     console.warn(`Firestore operation '${operationName}' failed:`, msg);
   }
@@ -110,7 +121,8 @@ function getDb(): Firestore | null {
     const config = memoryStore.settings.firebaseConfig ||
       (process.env.FIREBASE_CONFIG ? JSON.parse(process.env.FIREBASE_CONFIG) : null);
 
-    if (!config || !config.projectId) {
+    // Validate projectId - if missing or looks like an email address, disable Firestore
+    if (!config || !config.projectId || config.projectId.includes('@')) {
       return null;
     }
 
