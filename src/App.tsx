@@ -11,7 +11,7 @@ import LatestNewsView from './components/LatestNewsView';
 import { GADGETS_DATA, CATEGORIES, SAVED_COUPONS } from './data';
 import { getLocalizedProducts, getLocalizedCategories, getLocalizedCoupons } from './utils/localizer';
 import { PriceAlert } from './types';
-import { savePriceAlertToFirestore } from './lib/firebase';
+import { savePriceAlertToFirestore, fetchProductsFromFirestore, fetchDeletedProductsFromFirestore } from './lib/firebase';
 import { 
   Sparkles, SlidersHorizontal, ArrowUpDown, ShieldCheck, Tag, Info, 
   HelpCircle, ChevronRight, ChevronLeft, Check, CheckCircle2, SearchCode, AlertCircle
@@ -49,7 +49,7 @@ export default function App() {
     return false;
   });
 
-  const fetchProducts = () => {
+  const fetchProducts = async () => {
     // Read local deletions and custom products
     let localDeleted: string[] = [];
     let localCustom: any[] = [];
@@ -61,6 +61,18 @@ export default function App() {
     }
     const deletedSet = new Set(localDeleted);
 
+    // Fetch from Firestore directly for multi-device instant sync
+    let fsProducts: any[] = [];
+    try {
+      fsProducts = await fetchProductsFromFirestore();
+      const fsDeleted = await fetchDeletedProductsFromFirestore();
+      if (Array.isArray(fsDeleted)) {
+        fsDeleted.forEach((id) => deletedSet.add(id));
+      }
+    } catch (e) {
+      console.warn('Client Firestore product fetch:', e);
+    }
+
     fetch('/api/products')
       .then(res => {
         if (!res.ok) throw new Error('API server returned non-200');
@@ -68,36 +80,26 @@ export default function App() {
       })
       .then(data => {
         if (Array.isArray(data)) {
-          // Merge custom products if API doesn't already include them
-          const dataIds = new Set(data.map((p: any) => p.id));
-          const extraCustom = localCustom.filter((cp: any) => !dataIds.has(cp.id));
-          const merged = [...extraCustom, ...data];
-          const filtered = merged.filter((p: any) => !deletedSet.has(p.id));
+          // Merge API data with Firestore and local custom products
+          const existingIds = new Set(data.map((p: any) => p.id));
+          const extraFs = fsProducts.filter((p) => p && p.id && !existingIds.has(p.id));
+          extraFs.forEach((p) => existingIds.add(p.id));
+          const extraCustom = localCustom.filter((cp: any) => !existingIds.has(cp.id));
           
-          if (filtered.length === 0 && merged.length > 0) {
-            console.info('Auto-recovering catalog from stale local deletions.');
-            localStorage.removeItem('deletedProductIds');
-            setProductsState(merged);
-          } else {
-            setProductsState(filtered);
-          }
+          const merged = [...extraCustom, ...extraFs, ...data];
+          const filtered = merged.filter((p: any) => !deletedSet.has(p.id));
+          setProductsState(filtered);
         }
       })
       .catch(err => {
-        console.warn('Error or fallback for API products, applying client storage:', err);
-        // Client-side fallback for static Vercel / offline mode
-        const customIds = new Set(localCustom.map((p: any) => p.id));
-        const merged = [
-          ...localCustom,
-          ...GADGETS_DATA.filter(p => !customIds.has(p.id))
-        ];
+        console.warn('Error or fallback for API products, applying client & Firestore storage:', err);
+        const existingIds = new Set(fsProducts.map((p: any) => p.id));
+        const extraCustom = localCustom.filter((cp: any) => !existingIds.has(cp.id));
+        const defaultExtra = GADGETS_DATA.filter((p) => !existingIds.has(p.id) && !extraCustom.some((c) => c.id === p.id));
+        
+        const merged = [...extraCustom, ...fsProducts, ...defaultExtra];
         const filtered = merged.filter((p: any) => !deletedSet.has(p.id));
-        if (filtered.length === 0 && merged.length > 0) {
-          localStorage.removeItem('deletedProductIds');
-          setProductsState(merged);
-        } else {
-          setProductsState(filtered);
-        }
+        setProductsState(filtered);
       });
   };
 
