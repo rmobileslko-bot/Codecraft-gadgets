@@ -897,6 +897,13 @@ export default function AdminPanel({ onBack, onRefreshCatalog, products, addToas
         throw new Error(errorData.error || 'Failed to save custom product to live inventory');
       }
 
+      // Sync directly to client Firestore if configured
+      try {
+        await syncProductToFirestore(scrapedProduct);
+      } catch (fsErr) {
+        console.warn('Firestore sync attempt on publish:', fsErr);
+      }
+
       // Sync local state / client backup and clear deletion flags
       try {
         const existingCustom: GadgetProduct[] = JSON.parse(localStorage.getItem('customProducts') || '[]');
