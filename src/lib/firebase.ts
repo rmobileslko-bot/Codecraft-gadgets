@@ -30,6 +30,12 @@ export function saveFirebaseConfig(config: FirebaseConfig) {
     localStorage.removeItem('firestore_disabled');
   } catch (_) {}
   localStorage.setItem('firebase_config', JSON.stringify(config));
+  
+  // Re-initialize Firebase instances
+  firebaseApp = null;
+  firebaseAuth = null;
+  firebaseDb = null;
+  initFirebase();
 }
 
 export function clearFirebaseConfig() {
