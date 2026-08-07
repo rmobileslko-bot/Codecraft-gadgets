@@ -1293,7 +1293,7 @@ export default function AdminPanel({ onBack, onRefreshCatalog, products, addToas
                   <label className="text-[10px] font-mono font-bold text-slate-400 dark:text-slate-550 uppercase">Admin Email</label>
                   <input
                     type="email"
-                    placeholder="rmobileslko@gmail.com"
+                    placeholder="admin@example.com"
                     value={authEmail}
                     onChange={(e) => setAuthEmail(e.target.value)}
                     className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100"
@@ -1362,7 +1362,7 @@ export default function AdminPanel({ onBack, onRefreshCatalog, products, addToas
 
               <div className="bg-slate-800/80 border border-slate-700 px-4 py-3 rounded-2xl shrink-0 space-y-1">
                 <span className="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Logged in User</span>
-                <span className="text-xs font-bold text-emerald-400 font-mono">{authEmail || 'rmobileslko@gmail.com'}</span>
+                <span className="text-xs font-bold text-emerald-400 font-mono">{authEmail || firebaseUser?.email || 'Authenticated Admin'}</span>
               </div>
             </div>
 
