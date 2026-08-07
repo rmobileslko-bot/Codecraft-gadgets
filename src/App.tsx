@@ -773,23 +773,6 @@ export default function App() {
                 >
                   Reset All Filters
                 </button>
-                <button
-                  onClick={async () => {
-                    localStorage.removeItem('deletedProductIds');
-                    try {
-                      const res = await fetch('/api/products/reset', { method: 'POST' });
-                      if (res.ok) {
-                        fetchProducts();
-                      }
-                    } catch {}
-                    setSearchQuery('');
-                    setBrandFilter('all');
-                    setActiveCategory('all');
-                  }}
-                  className="px-5 py-2.5 bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 text-white font-semibold text-xs rounded-lg shadow-md cursor-pointer"
-                >
-                  Restore Full Catalog
-                </button>
               </div>
             </div>
           ) : (
