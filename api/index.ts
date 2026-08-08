@@ -1,6 +1,5 @@
 import express from 'express';
 import { GoogleGenAI } from '@google/genai';
-import { GADGETS_DATA } from '../src/data.js';
 import nodemailer from 'nodemailer';
 import {
   getServerSettings,
@@ -762,13 +761,7 @@ app.get('/api/products', async (req, res) => {
     const deleted = await getDeletedProducts();
     const deletedSet = new Set(deleted);
 
-    const customIds = new Set(custom.map((p: any) => p.id));
-    const merged = [
-      ...custom,
-      ...GADGETS_DATA.filter((p) => !customIds.has(p.id))
-    ];
-
-    const filtered = merged.filter((p) => !deletedSet.has(p.id));
+    const filtered = custom.filter((p) => !deletedSet.has(p.id));
     res.json(filtered);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Failed to retrieve products' });
@@ -800,12 +793,7 @@ app.post('/api/products', async (req, res) => {
     const deleted = await getDeletedProducts();
     const deletedSet = new Set(deleted);
 
-    const customIds = new Set(custom.map((p: any) => p.id));
-    const merged = [
-      ...custom,
-      ...GADGETS_DATA.filter((p) => !customIds.has(p.id))
-    ];
-    const filtered = merged.filter((p) => !deletedSet.has(p.id));
+    const filtered = custom.filter((p) => !deletedSet.has(p.id));
 
     try {
       await checkAndTriggerAlertsForProduct(newProduct);
@@ -831,29 +819,19 @@ app.delete('/api/products/:id', async (req, res) => {
     const deleted = await getDeletedProducts();
     const deletedSet = new Set(deleted);
 
-    const customIds = new Set(custom.map((p: any) => p.id));
-    const merged = [
-      ...custom,
-      ...GADGETS_DATA.filter((p) => !customIds.has(p.id))
-    ];
-    const filtered = merged.filter((p) => !deletedSet.has(p.id));
+    const filtered = custom.filter((p) => !deletedSet.has(p.id));
     res.json(filtered);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Failed to delete product' });
   }
 });
 
-// POST /api/products/reset - Clears deletions and restores all default & custom products
+// POST /api/products/reset - Clears deletions and restores all user products
 app.post('/api/products/reset', async (req, res) => {
   try {
     await clearDeletedProducts();
     const custom = await getCustomProducts();
-    const customIds = new Set(custom.map((p: any) => p.id));
-    const merged = [
-      ...custom,
-      ...GADGETS_DATA.filter((p) => !customIds.has(p.id))
-    ];
-    res.json({ success: true, count: merged.length, products: merged });
+    res.json({ success: true, count: custom.length, products: custom });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Failed to reset product catalog' });
   }
@@ -940,12 +918,7 @@ app.post('/api/admin/trigger-check', async (req, res) => {
     const custom = await getCustomProducts();
     const deleted = await getDeletedProducts();
     const deletedSet = new Set(deleted);
-    const customIds = new Set(custom.map((p: any) => p.id));
-    const merged = [
-      ...custom,
-      ...GADGETS_DATA.filter((p) => !customIds.has(p.id))
-    ];
-    const activeProducts = merged.filter((p) => !deletedSet.has(p.id));
+    const activeProducts = custom.filter((p) => !deletedSet.has(p.id));
 
     for (const product of activeProducts) {
       await checkAndTriggerAlertsForProduct(product);
@@ -1696,13 +1669,7 @@ app.get('/sitemap.xml', async (req, res) => {
     const deleted = await getDeletedProducts();
     const deletedSet = new Set(deleted);
 
-    const customIds = new Set(custom.map((p: any) => p.id));
-    const merged = [
-      ...custom,
-      ...GADGETS_DATA.filter((p) => !customIds.has(p.id))
-    ];
-
-    const activeProducts = merged.filter((p) => !deletedSet.has(p.id));
+    const activeProducts = custom.filter((p) => !deletedSet.has(p.id));
     const newsPosts = await getNewsPosts();
     const publishedNews = newsPosts.filter((p) => p.isPublished !== false);
 
