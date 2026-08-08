@@ -8,7 +8,7 @@ import PriceAlertsModal from './components/PriceAlertsModal';
 import Footer from './components/Footer';
 import AdminPanel from './components/AdminPanel';
 import LatestNewsView from './components/LatestNewsView';
-import { GADGETS_DATA, CATEGORIES, SAVED_COUPONS } from './data';
+import { CATEGORIES, SAVED_COUPONS } from './data';
 import { getLocalizedProducts, getLocalizedCategories, getLocalizedCoupons } from './utils/localizer';
 import { PriceAlert } from './types';
 import { savePriceAlertToFirestore, fetchProductsFromFirestore, fetchDeletedProductsFromFirestore } from './lib/firebase';
@@ -28,14 +28,9 @@ export default function App() {
       const localDeleted: string[] = JSON.parse(localStorage.getItem('deletedProductIds') || '[]');
       const localCustom: any[] = JSON.parse(localStorage.getItem('customProducts') || '[]');
       const deletedSet = new Set(localDeleted);
-      const customIds = new Set(localCustom.map((p: any) => p.id));
-      const merged = [
-        ...localCustom,
-        ...GADGETS_DATA.filter((p) => !customIds.has(p.id))
-      ];
-      return merged.filter((p: any) => !deletedSet.has(p.id));
+      return localCustom.filter((p: any) => p && p.id && !deletedSet.has(p.id));
     } catch (e) {
-      return GADGETS_DATA;
+      return [];
     }
   };
 
@@ -94,10 +89,9 @@ export default function App() {
       .catch(err => {
         console.warn('Error or fallback for API products, applying client & Firestore storage:', err);
         const existingIds = new Set(fsProducts.map((p: any) => p.id));
-        const extraCustom = localCustom.filter((cp: any) => !existingIds.has(cp.id));
-        const defaultExtra = GADGETS_DATA.filter((p) => !existingIds.has(p.id) && !extraCustom.some((c) => c.id === p.id));
+        const extraCustom = localCustom.filter((cp: any) => cp && cp.id && !existingIds.has(cp.id));
         
-        const merged = [...extraCustom, ...fsProducts, ...defaultExtra];
+        const merged = [...extraCustom, ...fsProducts];
         const filtered = merged.filter((p: any) => !deletedSet.has(p.id));
         setProductsState(filtered);
       });
