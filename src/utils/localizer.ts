@@ -1,4 +1,4 @@
-import { GADGETS_DATA, CATEGORIES, SAVED_COUPONS } from '../data';
+import { CATEGORIES, SAVED_COUPONS } from '../data';
 import { TRANSLATIONS_DATA } from '../translations_data';
 import { GadgetProduct } from '../types';
 
